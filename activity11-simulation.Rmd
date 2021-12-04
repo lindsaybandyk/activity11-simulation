@@ -1,6 +1,6 @@
 ---
 title: "Activity 11 - Simulation"
-author: "Name"
+author: "Lindsay Bandyk"
 output: github_document
 ---
 
@@ -26,6 +26,9 @@ One way to make sure that you get similar results each time is to always run all
 For this activity, you will need the `{tidyverse}`.
 
 **delete this line and load `{tidyverse}`**
+```{r}
+library(tidyverse)
+```
 
 
 ## Exploration
@@ -59,13 +62,21 @@ ggplot(norm_samp_1000, aes(x = values)) +
 
 Using `norm_samp_1000`, obtain the mean and standard deviation of this sample?
 
+ Mean of 50.19228 and Standard Deviation of 9.59245.
 
 
 Now, create a new simulation.
 In this you will obtain a sample of size 30 from from a Normally distributed variable with a mean 50 and standard deviation 10, and find the mean and standard deviation.
 How do the mean and standard deviation compare to your answers above?
 
-
+```{r newsimulation}
+norm_samp_30 <- tibble(
+  values = rnorm(n = 30, mean = 50, sd = 10)
+)
+norm_samp_30 %>% 
+  summarise(std=sd(values), mean=mean(values))
+```
+Mean of 47.78609 and Standard Deviation of 9.87055
 
 ### Non-normally distributed population
 
@@ -73,6 +84,20 @@ Using a similar process, obtain Exponentially distributed variable (`?rexp`) wit
 Obtain a sample of 1,000 observations and a sample of 30 observations.
 Then, calculate the mean and standard deviation of each sample and discuss how the values are similar and how they differ.
 
+```{r exp-samp}
+exp_samp_1000 <- tibble(
+  values=rexp(n=1000, rate=0.02)
+)
+exp_samp_30 <- tibble(
+  values=rexp(n=30, rate=0.02)
+)
+exp_samp_1000 %>% 
+  summarise(std=sd(values), mean=mean(values))
+exp_samp_30 %>% 
+  summarise(std=sd(values), mean=mean(values))
+```
+
+The 1000 sample has a standard deviation of 49.58728 and mean of 48.31007, whereas the 30 sample has a standard deviation of 34.89176 and mean of 36.54428. The larger sample is much closer to the distribution mean/std of 50.
 
 
 
@@ -93,6 +118,28 @@ You should **not** use the default parameter options for these distributions (e.
 Test your function with `n = 30` and `n = 1000`.
 
 
+```{r new generation of many dist}
+generate_n_samples <- function(x){
+  tibble(
+    normal=rnorm(x, mean=10, sd=3),
+    exponential=rexp(x, rate=0.5),
+    chisquare=rchisq(x, df=10),
+    uniform=runif(x, min=0, max=10)
+  )
+}
+multi_sample_1000 <- generate_n_samples(1000)
+multi_sample_30 <- generate_n_samples(30)
+multi_sample_1000 %>% 
+  summarise(normSD=sd(normal), normMean=mean(normal),
+            expSD=sd(exponential), expMean=mean(exponential),
+            chiSD=sd(chisquare), chiMean=mean(chisquare),
+            uniSD=sd(uniform), uniMean=mean(uniform))
+multi_sample_30 %>% 
+  summarise(normSD=sd(normal), normMean=mean(normal),
+            expSD=sd(exponential), expMean=mean(exponential),
+            chiSD=sd(chisquare), chiMean=mean(chisquare),
+            uniSD=sd(uniform), uniMean=mean(uniform))
+```
 
 
 Keep the following information in mind for the rest of this activity.
@@ -156,24 +203,48 @@ map(1:1000, ~rnorm(30, mean = 50, sd = 10))
 Continuing to work with your multiple distribution sample generator from above, generate 1,000 samples from the four distributions each with size 30.
 We will want to continue to work with this list so be sure to assign these samples to an appropriately named object (say, `multiple_samples`).
 
+```{r}
+multiple_samples <- map(1:1000, ~generate_n_samples(30))
+head(multiple_samples)
+```
 
 
 Calculate the sample mean of each sample using the appropriate `map` function and my `sample_mean` function to produce a *data frame* of multiple sample means from your multiple samples object.
 Assign these sample means to an appropriately named object.
 
 
+```{r sample mean}
+multiple_samples <- map(1:1000, ~generate_n_samples(30))
+head(multiple_samples)
 
+```
+
+```{r}
+sample_means_multiple_samples <- map(multiple_samples, ~sample_mean(.))
+
+```
 
 
 Restructure your previous sample means R object to, instead of having 1,000 rows and 4 columns, have 4,000 rows and 2 columns where the columns are named `distribution` and `means`.
 Assign this restructured data to an appropriately named object.
 
 
+```{r to an object}
+sample_means_by_distibution <- sample_means_multiple_samples %>% 
+  pivot_longer(cols = c(mean_normal, mean_exponential, mean_chisqr, mean_uniform), names_to = "distribution", values_to = "means")
+head(sample_means_by_distibution)
+```
 
 
 Using the restructured data, create a histogram for each `distribution` using a *facet* layer.
 
 
+```{r}
+sample_means_by_distibution %>% 
+  ggplot() +
+  geom_histogram(mapping = aes(x = means), binwidth = 1) +
+  facet_wrap(~distribution)
+```
 
 
 Comment on each of shape of each of the mean plots above.
@@ -181,17 +252,27 @@ How was the distribution of the sample means different than the distribution of 
 Note, looking at the wiki pages linked early in this activity will help you compare your sample mean distributions to the population distributions.
 
 
+All of the distributions above are tightly packed (have small standard errors).  They also all appear to be approximately normal distributions.  This was different than the distribution of the population because not every population distribution is normal.
+
 
 Using the restructured data, obtain the mean and standard deviation **for each** of the distributions.
 
+```{r}
+sample_means_by_distibution %>% 
+  group_by(distribution) %>% 
+  summarize(mean = mean(means), stand_dev = sd(means))
+```
 
 
 
 Comment on how each mean compares to the "population values" mean that you calculated above.
 
+The means of these standard deviations are very close to the "population values" means from above (little difference).
 
 
 Comment on how each standard deviation compares to the "population values" standard deviation that you calculated above.
+
+The standard deviations are much smaller than the "population values" standard deviations from above (large difference).
 
 
 
@@ -216,6 +297,7 @@ distribution_exploration(n = 100, rep = 1000, mean = 50, sd = 10, rate = 0.2, df
 How do these values compare to your work with `n = 30`?
 
 
+For a sample size of n = 100, the average sample mean is much closer to the true mean and the standard error is much smaller (data is less spread out) than when you compare to a sample size of n = 30.
 
 
 
@@ -231,7 +313,38 @@ Instead of calculating the mean of each of the 1,000 samples, explore one or a f
 - standard deviation
 - IQR
 
+```{r}
+multiple_samples2 <- map(1:1000, ~generate_n_samples(30))
+head(multiple_samples)
+```
 
+```{r}
+sample_median <- function(.data){
+  .data %>% 
+    summarise(across(everything(), median, .names = "median_{.col}"))
+}
+```
+
+```{r}
+sample_medians_multiple_samples <- map(multiple_samples, ~sample_median(.))
+
+```
+
+```{r}
+sample_medians_multiple_samples <- bind_rows(sample_medians_multiple_samples)
+head(sample_medians_multiple_samples)
+```
+```{r}
+sample_medians_by_distibution <- sample_medians_multiple_samples %>% 
+  pivot_longer(cols = c(median_normal, median_exponential, median_chisqr, median_uniform), names_to = "distribution", values_to = "medians")
+head(sample_medians_by_distibution)
+```
+```{r}
+sample_medians_by_distibution %>% 
+  ggplot() +
+  geom_histogram(mapping = aes(x = medians), binwidth = 1) +
+  facet_wrap(~distribution)
+```
 
 ## Challenge 2: Apply this knowledge
 
@@ -258,7 +371,30 @@ To do this,
 4. Calculate what percentage of the sample means waited as long or longer than you.
 
 
+```{r}
+wait_time_sample_30 <- rexp(n = 30, rate = .1)
+wait_time_sample_30
+```
 
+```{r}
+multiple_samples <- map(1:1000, ~rexp(n = 30, rate = .1))
+```
+```{r}
+head(multiple_samples)
+```
+```{r}
+means_of_multiple_samples <- map(multiple_samples, ~mean(.))
+
+```
+```{r}
+means_of_multiple_samples <- unlist(means_of_multiple_samples)
+
+```
+```{r}
+tibble(means = means_of_multiple_samples) %>% 
+  filter(means >= 15) %>% 
+  summarize(prop = n() / 1000)
+```
 
 ### Using CLT
 
@@ -267,17 +403,23 @@ To do this,
 1. Recall that the CLT states that all potential sample means are approximately normal with mean 10 (GVSU's claim) and a standard deviation of the population standard deviation (you calculated this by-hand above) divided by the square root of the sample size (30 days).
 2. Find the probability from the normal distribution in (1) that a sample mean is as long as or longer than your time of 15 minutes. You do not need to use any simulations, simply the appropriate `xnorm` function (where `x` is replaced with the appropriate one of either `d`, `p`, `q`, or `r`).
 
+```{r}
+1 - pnorm(15, mean = 10, sd = 10/sqrt(30))
+
+```
 
 
 
 
 Comment on how similar/different your results were for the simulation and CLT methods.
 
+The simulation showed that the probability of an average bus wait time is about 1% while the CLT method showed that the probability was about .3%.  Both very low probabilities.
 
 
 Do you believe that bus wait times are Exponentially distributed?
 
 
+No, I do not beilieve the bus wait times are Exponentially distributed.
 
 
 ![](README-img/noun_pause.png) **Planned Pause Point**: If you have any questions, contact your instructor. Otherwise feel free to continue on.
